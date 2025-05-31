@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game Bomber Petualangan</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #263238, #455A64); /* Nuansa gua/malam */
+            margin: 0;
+            font-family: 'Press Start 2P', cursive;
+            color: #ECEFF1; /* Putih keabuan */
+        }
+        #characterSelectionScreen, #gameScreen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .character-option img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            border: 3px solid transparent;
+            border-radius: 10px;
+            margin: 10px;
+            cursor: pointer;
+            transition: border-color 0.3s ease, transform 0.2s ease;
+        }
+        .character-option img:hover, .character-option img.selected {
+            border-color: #FFD700; /* Emas saat hover/selected */
+            transform: scale(1.1);
+        }
+        #gameInfo {
+            margin-bottom: 15px;
+            font-size: 1rem;
+            text-align: center;
+            color: #CFD8DC;
+        }
+        #gameBoard {
+            display: grid;
+            border: 5px solid #607D8B; /* Batu abu-abu */
+            box-shadow: 0 0 25px rgba(0,0,0, 0.5);
+            background-color: #37474F; /* Dasar papan lebih gelap */
+        }
+        .cell {
+            width: 40px; /* Ukuran tetap */
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 22px;
+            border: 1px solid #546E7A; /* Border sel lebih gelap */
+            position: relative; /* Untuk positioning ikon item */
+        }
+        .cell img { /* Untuk gambar pemain/bot */
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        .wall {
+            background-color: #4E342E; /* Batu coklat tua */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%234E342E'/%3E%3Cpath d='M0 10h40M0 30h40M10 0v40M30 0v40' stroke='%233E2723' stroke-width='2'/%3E%3C/svg%3E");
+        }
+        .destructible-wall {
+            background-color: #795548; /* Kayu/batu lebih muda */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 40 40'%3E%3Crect width='40' height='40' fill='%23795548'/%3E%3Crect x='5' y='5' width='30' height='30' fill='%238D6E63'/%3E%3Cpath d='M0 0L40 40M40 0L0 40' stroke='%235D4037' stroke-width='1.5' opacity='0.5'/%3E%3C/svg%3E"); /* Pola peti/retak */
+        }
+        .bomb {
+            animation: pulseBomb 0.5s infinite alternate;
+        }
+        .explosion {
+            background-color: #FF9800; /* Ledakan oranye/api */
+            opacity: 0.8;
+            animation: fadeOutExplosion 0.4s forwards;
+            border-radius: 50%;
+        }
+        .item {
+            font-size: 20px; /* Ukuran ikon item */
+            animation: floatItem 1.5s ease-in-out infinite alternate;
+        }
+        @keyframes floatItem {
+            from { transform: translateY(-2px); }
+            to { transform: translateY(2px); }
+        }
+        @keyframes pulseBomb {
+            from { transform: scale(1); }
+            to { transform: scale(1.3); filter: brightness(1.2); }
+        }
+        @keyframes fadeOutExplosion {
+            from { opacity: 0.8; transform: scale(1.2); }
+            to { opacity: 0; transform: scale(0.5); }
+        }
+        #controls {
+            margin-top: 15px;
+            text-align: center;
+        }
+        .control-button, .action-button {
+            background-color: #0097A7; /* Cyan tua */
+            color: white;
+            border: none;
+            padding: 12px 18px;
+            margin: 5px;
+            border-radius: 8px;
+            font-family: 'Press Start 2P', cursive;
+            cursor: pointer;
+            box-shadow: 0 4px #006064; /* Bayangan lebih gelap */
+            transition: all 0.1s ease;
+            font-size: 0.8rem;
+        }
+        .control-button:active, .action-button:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #006064;
+        }
+        .action-button {
+            background-color: #558B2F; /* Hijau untuk mulai */
+            box-shadow: 0 4px #33691E;
+            font-size: 1rem;
+            padding: 15px 25px;
+        }
+        #messageArea {
+            margin-top: 10px;
+            height: 40px; /* Sedikit lebih tinggi untuk pesan */
+            color: #FF5252; /* Merah terang untuk pesan penting */
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="characterSelectionScreen">
+        <h2>Pilih Karaktermu!</h2>
+        <div style="display: flex;">
+            <div class="character-option">
+                <img src="img/char1.png" alt="Karakter 1" data-char="char1">
+            </div>
+            <div class="character-option">
+                <img src="img/char2.png" alt="Karakter 2" data-char="char2">
+            </div>
+        </div>
+        <button id="confirmCharacterButton" class="action-button hidden" style="margin-top: 20px;">Mulai Petualangan!</button>
+    </div>
+
+    <div id="gameScreen" class="hidden">
+        <div id="gameInfo">
+            <p>Bomber Petualangan</p>
+            <p id="score">Skor: 0</p>
+            <p>Bom: <span id="bombCount">1</span>/<span id="maxBombCount">1</span> | Kekuatan: <span id="bombStrength">1</span></p>
+        </div>
+        <div id="gameBoard"></div>
+        <div id="controls">
+            <button class="control-button" onclick="movePlayer(0, -1)">Atas</button> <br>
+            <button class="control-button" onclick="movePlayer(-1, 0)">Kiri</button>
+            <button class="control-button" onclick="placeBomb()">BOM!</button>
+            <button class="control-button" onclick="movePlayer(1, 0)">Kanan</button> <br>
+            <button class="control-button" onclick="movePlayer(0, 1)">Bawah</button>
+        </div>
+        <div id="messageArea"></div>
+    </div>
+
+    <script>
+        const gameBoardElement = document.getElementById('gameBoard');
+        const scoreElement = document.getElementById('score');
+        const messageAreaElement = document.getElementById('messageArea');
+        const bombCountElement = document.getElementById('bombCount');
+        const maxBombCountElement = document.getElementById('maxBombCount');
+        const bombStrengthElement = document.getElementById('bombStrength');
+
+        const characterSelectionScreen = document.getElementById('characterSelectionScreen');
+        const gameScreen = document.getElementById('gameScreen');
+        const characterOptions = document.querySelectorAll('.character-option img');
+        const confirmCharacterButton = document.getElementById('confirmCharacterButton');
+
+        const COLS = 15;
+        const ROWS = 11;
+        const CELL_SIZE = 40;
+
+        const EMPTY = 0;
+        const WALL = 1;
+        const DESTRUCTIBLE_WALL = 2;
+        const PLAYER = 'P';
+        const BOT = 'B';
+        const EXPLOSION = 'E';
+
+        // Item Types
+        const ITEM_EXTRA_BOMB = 'IB';
+        const ITEM_BOMB_STRENGTH = 'IS';
+        const ITEM_SCORE_BONUS = 'SB'; // Skor bonus
+
+        // Visuals (Emoji/Text)
+        const BOT_ICON_CONTENT = '👹'; // Monster/Goblin
+        const BOMB_ICON_CONTENT = '💣';
+        const EXTRA_BOMB_ICON_CONTENT = '➕';
+        const BOMB_STRENGTH_ICON_CONTENT = '🔥';
+        const SCORE_BONUS_ICON_CONTENT = '⭐';
+
+        const CHARACTER_1_URL = 'Gemini_Generated_Image_2vy2ii2vy2ii2vy2.jpg'; // Ganti dengan URL gambar Anda
+        const CHARACTER_2_URL = 'Gemini_Generated_Image_7tt4d27tt4d27tt4.jpg'; // Ganti dengan URL gambar Anda
+        let selectedPlayerImageURL = CHARACTER_1_URL; // Default
+
+        let board = [];
+        let player = { x: 1, y: 1, maxBombs: 1, currentActiveBombs: 0, bombStrength: 1, iconURL: selectedPlayerImageURL };
+        let bots = [{ x: COLS - 2, y: ROWS - 2, id: 1 }];
+        let bombs = [];
+        let score = 0;
+        let gameOver = false;
+        let gameStarted = false;
+
+        // Character Selection Logic
+        characterOptions.forEach(img => {
+            img.addEventListener('click', () => {
+                characterOptions.forEach(opt => opt.classList.remove('selected'));
+                img.classList.add('selected');
+                selectedPlayerImageURL = img.src;
+                player.iconURL = selectedPlayerImageURL;
+                confirmCharacterButton.classList.remove('hidden');
+            });
+        });
+
+        confirmCharacterButton.addEventListener('click', () => {
+            characterSelectionScreen.classList.add('hidden');
+            gameScreen.classList.remove('hidden');
+            startGame();
+        });
+
+        function updateGameInfo() {
+            scoreElement.textContent = `Skor: ${score}`;
+            bombCountElement.textContent = player.maxBombs - player.currentActiveBombs;
+            maxBombCountElement.textContent = player.maxBombs;
+            bombStrengthElement.textContent = player.bombStrength;
+        }
+
+        function initBoard() {
+            board = Array(ROWS).fill(null).map(() => Array(COLS).fill(EMPTY));
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (r === 0 || r === ROWS - 1 || c === 0 || c === COLS - 1) {
+                        board[r][c] = WALL;
+                    } else if (r % 2 === 0 && c % 2 === 0) {
+                        board[r][c] = WALL;
+                    } else if (Math.random() < 0.65) { // Increased chance for more items
+                        let isPlayerSpawn = (r === player.y && c === player.x) || (r === player.y && c === player.x + 1) || (r === player.y + 1 && c === player.x);
+                        let isBotSpawn = bots.some(bot => (r === bot.y && c === bot.x) || (r === bot.y && c === bot.x+1) || (r === bot.y+1 && c === bot.x) || (r === bot.y && c === bot.x-1) || (r === bot.y-1 && c === bot.x));
+                        if (!isPlayerSpawn && !isBotSpawn) {
+                            board[r][c] = DESTRUCTIBLE_WALL;
+                        }
+                    }
+                }
+            }
+            board[player.y][player.x] = PLAYER;
+            bots.forEach(bot => {
+                if(board[bot.y][bot.x] === EMPTY) board[bot.y][bot.x] = BOT;
+            });
+            renderBoard();
+        }
+
+        function renderBoard() {
+            gameBoardElement.innerHTML = '';
+            gameBoardElement.style.gridTemplateColumns = `repeat(${COLS}, ${CELL_SIZE}px)`;
+            gameBoardElement.style.gridTemplateRows = `repeat(${ROWS}, ${CELL_SIZE}px)`;
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.r = r;
+                    cell.dataset.c = c;
+
+                    let content = '';
+                    let isPlayerCell = false;
+
+                    switch (board[r][c]) {
+                        case WALL: cell.classList.add('wall'); break;
+                        case DESTRUCTIBLE_WALL: cell.classList.add('destructible-wall'); break;
+                        case PLAYER:
+                            isPlayerCell = true;
+                            const playerImg = document.createElement('img');
+                            playerImg.src = player.iconURL;
+                            playerImg.alt = "Pemain";
+                            cell.appendChild(playerImg);
+                            break;
+                        case BOT: content = BOT_ICON_CONTENT; break;
+                        case ITEM_EXTRA_BOMB: content = EXTRA_BOMB_ICON_CONTENT; cell.classList.add('item'); break;
+                        case ITEM_BOMB_STRENGTH: content = BOMB_STRENGTH_ICON_CONTENT; cell.classList.add('item'); break;
+                        case ITEM_SCORE_BONUS: content = SCORE_BONUS_ICON_CONTENT; cell.classList.add('item'); break;
+                        case EMPTY: break; // Handled by bomb check below
+                        case EXPLOSION: cell.classList.add('explosion'); break;
+                    }
+
+                    // Bombs are rendered on top of empty cells or item cells (if player moves off)
+                    const bombOnCell = bombs.find(b => b.x === c && b.y === r);
+                    if (bombOnCell && !isPlayerCell) { // Jangan timpa pemain dengan bom jika pemain di atas bom
+                        content = BOMB_ICON_CONTENT;
+                        cell.classList.add('bomb');
+                    }
+                    
+                    if (!isPlayerCell) { // Hanya set innerHTML jika bukan sel pemain (karena pemain pakai img)
+                        cell.innerHTML = content;
+                    }
+                    gameBoardElement.appendChild(cell);
+                }
+            }
+        }
+
+        window.movePlayer = function(dx, dy) {
+            if (gameOver || !gameStarted) return;
+            const newX = player.x + dx;
+            const newY = player.y + dy;
+
+            if (isValidMove(newX, newY)) {
+                const oldBoardValue = board[player.y][player.x];
+                // Jika pemain pindah dari sel yang ada bomnya, biarkan bomnya.
+                const bombAtOldPos = bombs.find(b => b.x === player.x && b.y === player.y);
+                board[player.y][player.x] = bombAtOldPos ? EMPTY : EMPTY; // Jadi EMPTY, bom akan dirender terpisah
+
+                player.x = newX;
+                player.y = newY;
+
+                // Item pickup
+                const cellItem = board[player.y][player.x];
+                if (cellItem === ITEM_EXTRA_BOMB) {
+                    player.maxBombs++;
+                    showMessage("Bom ekstra didapatkan!");
+                } else if (cellItem === ITEM_BOMB_STRENGTH) {
+                    player.bombStrength++;
+                    showMessage("Kekuatan bom bertambah!");
+                } else if (cellItem === ITEM_SCORE_BONUS) {
+                    score += 50;
+                    showMessage("Bonus skor +50!");
+                }
+                // Setelah item diambil atau jika sel kosong, tempatkan pemain
+                board[player.y][player.x] = PLAYER;
+                
+                updateGameInfo();
+                renderBoard();
+            }
+        }
+
+        function isValidMove(x, y) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+            const targetCell = board[y][x];
+            return targetCell === EMPTY || targetCell === EXPLOSION || targetCell === ITEM_EXTRA_BOMB || targetCell === ITEM_BOMB_STRENGTH || targetCell === ITEM_SCORE_BONUS || bombs.some(b => b.x === x && b.y === y);
+        }
+
+        window.placeBomb = function() {
+            if (gameOver || !gameStarted) return;
+            const existingBombAtPlayerPos = bombs.find(b => b.x === player.x && b.y === player.y);
+            if (player.currentActiveBombs < player.maxBombs && !existingBombAtPlayerPos) {
+                player.currentActiveBombs++;
+                const newBomb = {
+                    x: player.x,
+                    y: player.y,
+                    timer: setTimeout(() => explodeBomb(newBomb), 2500), // Meledak lebih cepat
+                    strength: player.bombStrength,
+                    owner: PLAYER
+                };
+                bombs.push(newBomb);
+                updateGameInfo();
+                renderBoard();
+            } else if (existingBombAtPlayerPos) {
+                showMessage("Sudah ada bom di sini!");
+            } else {
+                showMessage("Slot bom penuh!");
+            }
+        }
+
+        function explodeBomb(bomb) {
+            clearTimeout(bomb.timer);
+            bombs = bombs.filter(b => b !== bomb);
+
+            if (bomb.owner === PLAYER) {
+                player.currentActiveBombs--;
+            }
+            updateGameInfo();
+
+            const explosionCoords = [{ x: bomb.x, y: bomb.y, isCenter: true }];
+            const directions = [{dx:1, dy:0}, {dx:-1, dy:0}, {dx:0, dy:1}, {dx:0, dy:-1}];
+
+            for (const dir of directions) {
+                for (let i = 1; i <= bomb.strength; i++) {
+                    const ex = bomb.x + dir.dx * i;
+                    const ey = bomb.y + dir.dy * i;
+                    if (!addExplosionPath(ex, ey, explosionCoords, bomb.owner)) break;
+                }
+            }
+            
+            explosionCoords.forEach(coord => {
+                if (coord.x >=0 && coord.x < COLS && coord.y >=0 && coord.y < ROWS) {
+                    const currentBoardState = board[coord.y][coord.x];
+                    board[coord.y][coord.x] = EXPLOSION;
+
+                    if (player.x === coord.x && player.y === coord.y) {
+                        handleGameOver("Pemain terkena ledakan!");
+                    }
+                    bots.forEach((bot, index) => {
+                        if (bot.x === coord.x && bot.y === coord.y) {
+                            bots.splice(index, 1);
+                            if (bomb.owner === PLAYER) score += 100;
+                            updateGameInfo();
+                            if (bots.length === 0) handleGameOver("Semua bot dikalahkan! Kamu Menang!");
+                        }
+                    });
+                    bombs.forEach(otherBomb => { // Chain reaction
+                        if (otherBomb.x === coord.x && otherBomb.y === coord.y) {
+                            // Tambahkan sedikit delay untuk chain reaction agar terlihat lebih baik
+                            setTimeout(() => explodeBomb(otherBomb), 50);
+                        }
+                    });
+
+                    setTimeout(() => {
+                        // Hanya kembalikan ke EMPTY jika masih EXPLOSION dan bukan WALL permanen
+                        // Jika ada item di bawah ledakan, item itu hancur (atau bisa dibuat tidak hancur)
+                        if (board[coord.y][coord.x] === EXPLOSION) {
+                           board[coord.y][coord.x] = EMPTY;
+                        }
+                        renderBoard();
+                    }, 400);
+                }
+            });
+            renderBoard();
+        }
+
+        function addExplosionPath(x, y, coordsArray, owner) {
+            if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
+            if (board[y][x] === WALL) return false;
+
+            coordsArray.push({x,y});
+
+            if (board[y][x] === DESTRUCTIBLE_WALL) {
+                board[y][x] = EMPTY; // Hancurkan dinding dulu
+                if (owner === PLAYER) score += 10;
+                updateGameInfo();
+                // Kemungkinan drop item
+                if (Math.random() < 0.4) { // 40% chance to drop item
+                    const itemRand = Math.random();
+                    if (itemRand < 0.4) board[y][x] = ITEM_EXTRA_BOMB;
+                    else if (itemRand < 0.75) board[y][x] = ITEM_BOMB_STRENGTH;
+                    else board[y][x] = ITEM_SCORE_BONUS;
+                }
+                return false; // Ledakan berhenti
+            }
+            // Jika ledakan mengenai item, item hancur
+            if (board[y][x] === ITEM_EXTRA_BOMB || board[y][x] === ITEM_BOMB_STRENGTH || board[y][x] === ITEM_SCORE_BONUS) {
+                board[y][x] = EMPTY; // Item hancur oleh ledakan
+            }
+            return true;
+        }
+        
+        function handleGameOver(message) {
+            if (gameOver) return;
+            gameOver = true;
+            gameStarted = false;
+            showMessage(message);
+            
+            const restartButton = document.createElement('button');
+            restartButton.textContent = "Main Lagi?";
+            restartButton.classList.add('action-button');
+            restartButton.style.backgroundColor = "#D32F2F"; // Merah untuk restart
+            restartButton.style.boxShadow = "0 4px #B71C1C";
+            restartButton.onclick = () => {
+                messageAreaElement.innerHTML = '';
+                characterSelectionScreen.classList.remove('hidden');
+                gameScreen.classList.add('hidden');
+                // Reset pilihan karakter
+                characterOptions.forEach(opt => opt.classList.remove('selected'));
+                confirmCharacterButton.classList.add('hidden');
+                selectedPlayerImageURL = CHARACTER_1_URL; // Reset ke default
+                 // Hapus semua timeout bom yang mungkin masih berjalan
+                bombs.forEach(b => clearTimeout(b.timer));
+                bombs = [];
+            };
+            messageAreaElement.appendChild(document.createElement('br'));
+            messageAreaElement.appendChild(restartButton);
+        }
+
+        function showMessage(msg) {
+            messageAreaElement.textContent = msg;
+            setTimeout(() => {
+                if (messageAreaElement.textContent === msg) { // Hanya hapus jika pesannya masih sama
+                    messageAreaElement.textContent = '';
+                }
+            }, 2500); // Pesan hilang setelah 2.5 detik
+        }
+
+        function moveBots() {
+            if (gameOver || !gameStarted) return;
+            bots.forEach(bot => {
+                const moves = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+                const randomMove = moves[Math.floor(Math.random() * moves.length)];
+                const newX = bot.x + randomMove.dx;
+                const newY = bot.y + randomMove.dy;
+
+                if (isValidMove(newX, newY) && board[newY][newX] !== PLAYER && board[newY][newX] !== BOT) {
+                    const bombAtOldPos = bombs.find(b => b.x === bot.x && b.y === bot.y);
+                    board[bot.y][bot.x] = bombAtOldPos ? EMPTY : EMPTY;
+                    bot.x = newX;
+                    bot.y = newY;
+                    board[bot.y][bot.x] = BOT;
+                }
+            });
+            renderBoard();
+        }
+        
+        document.addEventListener('keydown', (event) => {
+            if (gameOver || !gameStarted) return;
+            switch (event.key.toLowerCase()) {
+                case 'arrowup': case 'w': movePlayer(0, -1); break;
+                case 'arrowdown': case 's': movePlayer(0, 1); break;
+                case 'arrowleft': case 'a': movePlayer(-1, 0); break;
+                case 'arrowright': case 'd': movePlayer(1, 0); break;
+                case ' ': event.preventDefault(); placeBomb(); break;
+            }
+        });
+
+        setInterval(() => {
+            if (!gameOver && gameStarted) moveBots();
+        }, 1200); // Bot bergerak sedikit lebih lambat
+
+        function startGame() {
+            gameStarted = true;
+            gameOver = false;
+            score = 0;
+            player.x = 1;
+            player.y = 1;
+            player.maxBombs = 1;
+            player.currentActiveBombs = 0;
+            player.bombStrength = 1;
+            player.iconURL = selectedPlayerImageURL; // Pastikan ikon pemain sudah terpilih
+            
+            bots = [{ x: COLS - 2, y: ROWS - 2, id: 1 }];
+            bombs.forEach(b => clearTimeout(b.timer)); // Hapus timer bom lama
+            bombs = [];
+            
+            updateGameInfo();
+            messageAreaElement.innerHTML = '';
+            initBoard();
+        }
+    </script>
+</body>
+</html>
