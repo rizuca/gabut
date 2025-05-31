@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Bird Cyberpunk</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&family=Press+Start+2P&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e); /* Gradient ungu tua ke biru tua */
+            margin: 0;
+            font-family: 'Orbitron', sans-serif; /* Font cyberpunk */
+            overflow: hidden;
+        }
+        #gameContainer {
+            position: relative;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5), 0 0 15px rgba(255, 0, 255, 0.5); /* Bayangan neon ganda */
+            overflow: hidden;
+            border: 2px solid #00ffff; /* Border cyan neon */
+        }
+        canvas {
+            display: block;
+            /* Background canvas akan digambar di JS untuk efek lebih dinamis jika diperlukan */
+            border-radius: 8px; /* Sedikit lebih kecil dari container */
+        }
+        #uiContainer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            pointer-events: none;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        #score {
+            font-size: 2.5rem; /* Ukuran font skor lebih besar */
+            color: #00ffff; /* Cyan neon */
+            text-shadow: 0 0 5px #00ffff, 0 0 10px #00ffff, 0 0 15px #ff00ff; /* Efek glow neon */
+            font-family: 'Press Start 2P', cursive; /* Tetap pakai font pixel untuk skor */
+        }
+        #startMessage, #gameOverMessage {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(10, 10, 30, 0.85); /* Background biru tua transparan */
+            color: #f0f0f0; /* Putih keabuan */
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            font-size: 1.3rem;
+            display: none;
+            pointer-events: all;
+            border: 1px solid #ff00ff; /* Border magenta neon */
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.4);
+        }
+        #startMessage p, #gameOverMessage p {
+            margin-bottom: 20px;
+            color: #00e5ff; /* Teks pesan dengan warna cyan terang */
+        }
+        .button {
+            background: linear-gradient(145deg, #ff00ff, #00ffff); /* Gradient magenta ke cyan */
+            color: #0f0c29; /* Warna teks gelap agar kontras */
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 10px #ff00ff, 0 0 5px #00ffff, inset 0 0 5px rgba(255,255,255,0.3);
+            margin-top: 15px;
+            text-transform: uppercase;
+        }
+        .button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px #ff00ff, 0 0 10px #00ffff, inset 0 0 8px rgba(255,255,255,0.5);
+        }
+        .button:active {
+            transform: scale(0.98) translateY(1px);
+        }
+
+        #controlsInfo {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00e5ff;
+            font-size: 0.9rem;
+            text-shadow: 0 0 3px #00e5ff;
+        }
+
+        #ground { /* Mengganti ground dengan efek garis neon */
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60px; /* Tinggi area "tanah" */
+            background: repeating-linear-gradient(
+                45deg,
+                #0f0c29,
+                #0f0c29 10px,
+                #ff00ff 10px,
+                #ff00ff 12px /* Garis magenta tipis */
+            );
+            animation: moveGroundNeon 1s linear infinite;
+            z-index: 1;
+            opacity: 0.7;
+        }
+
+        @keyframes moveGroundNeon {
+            0% { background-position: 0 0; }
+            100% { background-position: 28.28px 0; } /* (10+2)*sqrt(2) * 2, untuk pergerakan diagonal */
+        }
+
+        /* Efek grid di background canvas (opsional, bisa ditambahkan di JS) */
+        .canvas-background-grid {
+            position: absolute;
+            top:0; left:0;
+            width:100%; height:100%;
+            pointer-events: none;
+            z-index: -1; /* Di belakang canvas */
+            background-image:
+                linear-gradient(to right, rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <div class="canvas-background-grid"></div> <canvas id="gameCanvas"></canvas>
+        <div id="ground"></div>
+        <div id="uiContainer">
+            <div id="score">Skor: 0</div>
+            <div id="controlsInfo">KLIK/SPASI UNTUK TERBANG</div>
+        </div>
+        <div id="startMessage">
+            <p>CYBER FLAP</p>
+            <p>Klik atau tekan Spasi untuk memulai misi!</p>
+            <button class="button" id="startButton">AKTIFKAN</button>
+        </div>
+        <div id="gameOverMessage">
+            <p>SISTEM GAGAL!</p>
+            <p id="finalScore">Skor Akhir: 0</p>
+            <button class="button" id="restartButton">REBOOT</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const scoreDisplay = document.getElementById('score');
+        const startMessage = document.getElementById('startMessage');
+        const gameOverMessage = document.getElementById('gameOverMessage');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const controlsInfo = document.getElementById('controlsInfo');
+        const gameContainer = document.getElementById('gameContainer');
+
+        let canvasWidth = 360; 
+        let canvasHeight = 600; 
+
+        function resizeCanvas() {
+            const aspectRatio = 360 / 600;
+            const padding = 20;
+            const availableWidth = window.innerWidth - padding * 2;
+            const availableHeight = window.innerHeight - padding * 2;
+
+            if (availableWidth / availableHeight > aspectRatio) {
+                canvasHeight = availableHeight;
+                canvasWidth = canvasHeight * aspectRatio;
+            } else {
+                canvasWidth = availableWidth;
+                canvasHeight = canvasWidth / aspectRatio;
+            }
+
+            canvasWidth = Math.min(canvasWidth, 400); // Max width
+            canvasHeight = Math.min(canvasHeight, 660); // Max height corresponding to max width
+
+            canvas.width = canvasWidth;
+            canvas.height = canvasHeight;
+            
+            gameContainer.style.width = `${canvasWidth}px`;
+            gameContainer.style.height = `${canvasHeight}px`;
+
+            const groundElement = document.getElementById('ground');
+            if (groundElement) {
+                groundElement.style.height = `${canvasHeight * 0.1}px`;
+            }
+        }
+        window.addEventListener('resize', resizeCanvas);
+        
+
+        let birdX, birdY, birdVelocity, birdAcceleration;
+        let birdSize; // Akan di-set di resizeCanvas dan initGame
+        let pipeWidth, pipeGap; // Akan di-set di resizeCanvas dan initGame
+        const pipeSpeed = 2.5; // Sedikit lebih cepat
+        let score = 0;
+        let gameStarted = false;
+        let gameOver = false;
+        let pipes = [];
+
+        // Gambar Burung Robot (SVG)
+        const roboBirdWingUp = new Image();
+        // Desain robot burung dengan aksen neon
+        roboBirdWingUp.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 45'%3E%3Cdefs%3E%3Cfilter id='neon-glow-blue'%3E%3CfeGaussianBlur stdDeviation='1.5' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3C!-- Body --%3E%3Cpath d='M10 22.5 Q15 15 30 15 L40 10 L50 22.5 L40 35 L30 30 Q15 30 10 22.5 Z' fill='%234A4A4A' stroke='%23333' stroke-width='1.5'/%3E%3C!-- Wing --%3E%3Cpath d='M25 15 Q40 5 50 15 L40 22.5 Z' fill='%236E6E6E' stroke='%23333' stroke-width='1'/%3E%3C!-- Eye/Visor --%3E%3Crect x='42' y='18' width='10' height='5' fill='%2300ffff' rx='2' filter='url(%23neon-glow-blue)'/%3E%3C!-- Thruster --%3E%3Cellipse cx='12' cy='22.5' rx='5' ry='3' fill='%23ff00ff'/%3E%3C/svg%3E";
+        const roboBirdWingDown = new Image();
+        roboBirdWingDown.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 60 45'%3E%3Cdefs%3E%3Cfilter id='neon-glow-blue'%3E%3CfeGaussianBlur stdDeviation='1.5' result='coloredBlur'/%3E%3CfeMerge%3E%3CfeMergeNode in='coloredBlur'/%3E%3CfeMergeNode in='SourceGraphic'/%3E%3C/feMerge%3E%3C/filter%3E%3C/defs%3E%3C!-- Body --%3E%3Cpath d='M10 22.5 Q15 15 30 15 L40 10 L50 22.5 L40 35 L30 30 Q15 30 10 22.5 Z' fill='%234A4A4A' stroke='%23333' stroke-width='1.5'/%3E%3C!-- Wing --%3E%3Cpath d='M25 30 Q40 40 50 30 L40 22.5 Z' fill='%236E6E6E' stroke='%23333' stroke-width='1'/%3E%3C!-- Eye/Visor --%3E%3Crect x='42' y='18' width='10' height='5' fill='%2300ffff' rx='2' filter='url(%23neon-glow-blue)'/%3E%3C!-- Thruster --%3E%3Cellipse cx='12' cy='22.5' rx='5' ry='3' fill='%23ff00ff'/%3E%3C/svg%3E";
+        let currentBirdImage = roboBirdWingUp;
+        let flapAnimationCounter = 0;
+
+        function initGame() {
+            resizeCanvas(); // Pastikan ukuran canvas dan elemen responsif sudah benar
+
+            birdX = canvasWidth / 4;
+            birdY = canvasHeight / 2;
+            birdVelocity = 0;
+            birdAcceleration = 0.35; // Sedikit lebih berat
+            
+            birdSize = canvasWidth / 12; // Ukuran burung disesuaikan
+            pipeWidth = canvasWidth / 7; // Lebar pipa
+            pipeGap = canvasHeight / 3.8; // Jarak antar pipa
+
+            score = 0;
+            pipes = [];
+            gameOver = false;
+            gameStarted = false;
+
+            scoreDisplay.textContent = `Skor: ${score}`;
+            startMessage.style.display = 'block';
+            gameOverMessage.style.display = 'none';
+            controlsInfo.style.display = 'block';
+
+            generatePipe();
+        }
+
+        function drawBird() {
+            flapAnimationCounter++;
+            if (flapAnimationCounter % 8 === 0) { 
+                currentBirdImage = (currentBirdImage === roboBirdWingUp) ? roboBirdWingDown : roboBirdWingUp;
+            }
+            // Parameter drawImage: image, dx, dy, dWidth, dHeight
+            // Sesuaikan dWidth dan dHeight agar rasio aspek SVG terjaga
+            const aspectRatio = 60 / 45; // Dari viewBox SVG (width/height)
+            const birdDisplayHeight = birdSize;
+            const birdDisplayWidth = birdSize * aspectRatio;
+            ctx.drawImage(currentBirdImage, birdX - birdDisplayWidth / 2, birdY - birdDisplayHeight / 2, birdDisplayWidth, birdDisplayHeight);
+        }
+
+        function drawPipes() {
+            pipes.forEach(pipe => {
+                // Pipa atas
+                ctx.fillStyle = '#ff00ff'; // Magenta neon
+                ctx.fillRect(pipe.x, 0, pipe.width, pipe.topHeight);
+                // Efek glow pipa atas
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(pipe.x, 0, pipe.width, pipe.topHeight); // Gambar lagi untuk glow
+                ctx.shadowBlur = 0; // Reset shadow
+
+                // Pipa bawah
+                ctx.fillStyle = '#00ffff'; // Cyan neon
+                ctx.fillRect(pipe.x, pipe.topHeight + pipe.gap, pipe.width, canvas.height - pipe.topHeight - pipe.gap);
+                // Efek glow pipa bawah
+                ctx.shadowColor = '#00ffff';
+                ctx.shadowBlur = 15;
+                ctx.fillRect(pipe.x, pipe.topHeight + pipe.gap, pipe.width, canvas.height - pipe.topHeight - pipe.gap);
+                ctx.shadowBlur = 0;
+
+                // Outline tipis untuk memperjelas
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(pipe.x, 0, pipe.width, pipe.topHeight);
+                ctx.strokeRect(pipe.x, pipe.topHeight + pipe.gap, pipe.width, canvas.height - pipe.topHeight - pipe.gap);
+            });
+        }
+        
+        function drawBackground() {
+            // Latar belakang gradient gelap
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, "#0f0c29"); // Ungu tua
+            gradient.addColorStop(0.7, "#24243e"); // Biru keunguan
+            gradient.addColorStop(1, "#302b63"); // Ungu lebih terang di bawah
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Tambahkan efek grid neon (jika tidak menggunakan elemen HTML terpisah)
+            // ctx.strokeStyle = 'rgba(0, 255, 255, 0.15)';
+            // ctx.lineWidth = 1;
+            // for (let i = 0; i < canvas.width; i += 30) {
+            //     ctx.beginPath();
+            //     ctx.moveTo(i, 0);
+            //     ctx.lineTo(i, canvas.height);
+            //     ctx.stroke();
+            // }
+            // for (let i = 0; i < canvas.height; i += 30) {
+            //     ctx.beginPath();
+            //     ctx.moveTo(0, i);
+            //     ctx.lineTo(canvas.width, i);
+            //     ctx.stroke();
+            // }
+        }
+
+
+        function generatePipe() {
+            const minHeight = canvasHeight * 0.2;
+            const maxHeight = canvasHeight * 0.65;
+            const newTopPipeHeight = Math.random() * (maxHeight - minHeight) + minHeight;
+            pipes.push({
+                x: canvas.width,
+                topHeight: newTopPipeHeight,
+                width: pipeWidth,
+                gap: pipeGap,
+                passed: false
+            });
+        }
+
+        function updatePipes() {
+            pipes.forEach(pipe => {
+                pipe.x -= pipeSpeed;
+                if (!pipe.passed && pipe.x + pipe.width < birdX - birdSize / 2) {
+                    score++;
+                    scoreDisplay.textContent = `Skor: ${score}`;
+                    pipe.passed = true;
+                    // Suara skor (opsional)
+                    // const scoreSound = new Audio('path/to/score-sound.wav');
+                    // scoreSound.play();
+                }
+            });
+            pipes = pipes.filter(pipe => pipe.x + pipe.width > 0);
+            if (pipes.length === 0 || pipes[pipes.length - 1].x < canvas.width - canvas.width / 1.7) {
+                generatePipe();
+            }
+        }
+
+        function checkCollision() {
+            const birdTop = birdY - birdSize / 2;
+            const birdBottom = birdY + birdSize / 2;
+            const birdLeft = birdX - (birdSize * (60/45)) / 2; // Sesuaikan dengan rasio aspek SVG
+            const birdRight = birdX + (birdSize * (60/45)) / 2;
+
+
+            // Tabrakan dengan batas atas atau bawah (ground)
+            if (birdTop < 0 || birdBottom > canvas.height - (canvasHeight * 0.1)) {
+                return true;
+            }
+
+            for (let pipe of pipes) {
+                const pipeRight = pipe.x + pipe.width;
+                const pipeTopOpening = pipe.topHeight;
+                const pipeBottomOpening = pipe.topHeight + pipe.gap;
+
+                if (birdRight > pipe.x && birdLeft < pipeRight) {
+                    if (birdTop < pipeTopOpening || birdBottom > pipeBottomOpening) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function updateGame() {
+            if (!gameStarted || gameOver) return;
+            birdVelocity += birdAcceleration;
+            birdY += birdVelocity;
+            updatePipes();
+            if (checkCollision()) {
+                gameOver = true;
+                gameStarted = false;
+                finalScoreDisplay.textContent = `Skor Akhir: ${score}`;
+                gameOverMessage.style.display = 'block';
+                controlsInfo.style.display = 'none';
+                // Suara game over (opsional)
+                // const gameOverSound = new Audio('path/to/gameover-sound.wav');
+                // gameOverSound.play();
+            }
+        }
+
+        function drawGame() {
+            drawBackground(); // Gambar background dulu
+            drawPipes();
+            drawBird();
+        }
+
+        function gameLoop() {
+            updateGame();
+            drawGame();
+            if (!gameOver) {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        function flap() {
+            if (!gameOver) {
+                birdVelocity = -7; // Flap lebih kuat
+                if (!gameStarted) {
+                    startGame();
+                }
+                // Suara flap (opsional)
+                // const flapSound = new Audio('path/to/flap-sound.wav');
+                // flapSound.play();
+            }
+        }
+
+        function startGame() {
+            gameStarted = true;
+            gameOver = false;
+            startMessage.style.display = 'none';
+            gameOverMessage.style.display = 'none';
+            controlsInfo.style.display = 'block';
+            initGameValuesForStart();
+            gameLoop();
+        }
+
+        function initGameValuesForStart() {
+            birdX = canvasWidth / 4;
+            birdY = canvasHeight / 2;
+            birdVelocity = 0;
+            pipes = [];
+            score = 0;
+            scoreDisplay.textContent = `Skor: ${score}`;
+            generatePipe();
+        }
+
+        canvas.addEventListener('click', flap);
+        document.addEventListener('keydown', function(event) {
+            if (event.code === 'Space') {
+                event.preventDefault();
+                flap();
+            }
+        });
+
+        startButton.addEventListener('click', () => {
+            initGame();
+            startGame();
+        });
+
+        restartButton.addEventListener('click', () => {
+            initGame();
+            startGame();
+        });
+
+        // Inisialisasi awal
+        initGame();
+        drawGame(); // Gambar frame awal
+    </script>
+</body>
+</html>
