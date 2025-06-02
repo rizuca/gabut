@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <link rel="icon" href="img/ticlogo.png">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe - Gaya Hoyoverse dengan Info Fitur Gemini</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" href="img/ticlogo.png"> <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap');
+        
+        :root {
+            --hoyoverse-bg-start: #0c101f; 
+            --hoyoverse-bg-mid: #1a2035;  
+            --hoyoverse-bg-end: #2a304d;    
+            --hoyoverse-primary-glow: #a78bfa; 
+            --hoyoverse-secondary-glow: #7dd3fc; 
+            --hoyoverse-tertiary-glow: #fde047; 
+            --hoyoverse-text-light: #e2e8f0; 
+            --hoyoverse-text-dark: #94a3b8; 
+            --hoyoverse-accent: #f472b6; 
+            --hoyoverse-accent-alt: #60a5fa; 
+            --container-bg: rgba(15, 23, 42, 0.85); 
+            --cell-bg: rgba(30, 41, 59, 0.75); 
+            --cell-border: rgba(71, 85, 105, 0.7); 
+            --cell-hover-bg: rgba(51, 65, 85, 0.9); 
+            --avatar-bg: rgba(45, 55, 72, 0.8); /* Fallback background for avatar */
+            --avatar-border-active: var(--hoyoverse-primary-glow);
+            --avatar-border-inactive: var(--cell-border);
+            --hint-highlight-color: rgba(253, 224, 71, 0.5); 
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(170deg, var(--hoyoverse-bg-start) 0%, var(--hoyoverse-bg-mid) 50%, var(--hoyoverse-bg-end) 100%);
+            color: var(--hoyoverse-text-light);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            overflow-x: hidden;
+            position: relative;
+            padding: 1rem 0; 
+        }
+
+        body::after { /* Nebula */
+            content: ""; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: 
+                radial-gradient(ellipse at center, rgba(125, 211, 252, 0.08) 0%, transparent 40%),
+                radial-gradient(ellipse at 70% 30%, rgba(167, 139, 250, 0.06) 0%, transparent 35%),
+                radial-gradient(ellipse at 20% 80%, rgba(253, 224, 71, 0.05) 0%, transparent 30%); 
+            animation: slowDrift 120s infinite linear alternate; z-index: -2; opacity: 0.7;
+        }
+        @keyframes slowDrift { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(20px, 30px) rotate(15deg); } }
+
+        body::before { /* Bintang */
+            content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                radial-gradient(circle at 15% 25%, var(--hoyoverse-text-light) 0.5px, transparent 1px),
+                radial-gradient(circle at 85% 35%, var(--hoyoverse-text-light) 0.5px, transparent 1px),
+                radial-gradient(circle at 50% 75%, var(--hoyoverse-text-light) 1px, transparent 1.5px),
+                radial-gradient(circle at 30% 60%, var(--hoyoverse-secondary-glow) 0.7px, transparent 1.2px),
+                radial-gradient(circle at 70% 10%, var(--hoyoverse-tertiary-glow) 0.6px, transparent 1px),
+                radial-gradient(circle at 5% 90%, var(--hoyoverse-primary-glow) 0.5px, transparent 1px);
+            background-size: 50px 50px, 70px 70px, 90px 90px, 120px 120px, 150px 150px, 100px 100px; 
+            opacity: 0.5; z-index: -1; animation: twinkleEnhanced 15s infinite linear;
+        }
+        @keyframes twinkleEnhanced {
+            0% { background-position: 0 0, 0 0, 0 0, 0 0, 0 0, 0 0; opacity: 0.4; }
+            50% { opacity: 0.7; }
+            100% { background-position: 50px 50px, -70px 70px, 90px -90px, -120px 120px, 150px -150px, -100px 100px; opacity: 0.4; }
+        }
+
+        .game-container {
+            background-color: var(--container-bg); backdrop-filter: blur(15px) saturate(180%); 
+            border-radius: 1.75rem; padding: clamp(1.5rem, 4vw, 2.5rem); 
+            box-shadow: 0 0 20px var(--hoyoverse-secondary-glow), 0 0 40px var(--hoyoverse-primary-glow), 
+                        inset 0 0 15px rgba(125, 211, 252, 0.25), 0 0 0 1.5px rgba(125, 211, 252, 0.4); 
+            width: 90%; max-width: 580px; 
+            text-align: center;
+        }
+        
+        .api-key-input-container {
+            margin-top: 1.5rem;
+            padding: 0.75rem;
+            background-color: rgba(0,0,0,0.2);
+            border-radius: 0.75rem;
+            border: 1px solid var(--cell-border);
+        }
+        .api-key-input {
+            width: 100%; padding: 0.6rem 0.8rem; border-radius: 0.5rem;
+            border: 1px solid var(--hoyoverse-bg-end); background-color: var(--hoyoverse-bg-mid);
+            color: var(--hoyoverse-text-light); margin-bottom: 0.75rem; font-size: 0.9rem;
+        }
+        .api-key-input::placeholder { color: var(--hoyoverse-text-dark); }
+        .api-key-input-container p.instruction { 
+            font-size: 0.8rem; color: var(--hoyoverse-text-dark);
+            margin-bottom: 0.5rem; text-align: left;
+        }
+        .api-key-input-container a { color: var(--hoyoverse-secondary-glow); text-decoration: underline; }
+        .api-key-status {
+            font-size: 0.8rem; margin-top: 0.5rem; min-height: 1.2em;
+        }
+        .api-key-status.success { color: #4ade80; }
+        .api-key-status.error { color: #f87171; }
+
+        .feature-info { 
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background-color: rgba(0,0,0,0.15);
+            border-radius: 0.5rem;
+            border: 1px solid rgba(var(--cell-border), 0.5);
+            text-align: left;
+            font-size: 0.75rem; 
+            line-height: 1.4;
+            color: var(--hoyoverse-text-dark);
+        }
+        .feature-info h4 {
+            font-weight: 600; 
+            color: var(--hoyoverse-text-light);
+            margin-bottom: 0.3rem;
+            font-size: 0.85rem;
+        }
+        .feature-info p {
+            margin-bottom: 0.25rem;
+        }
+
+        .avatar-container { 
+            display: flex; 
+            justify-content: space-around; 
+            align-items: flex-start; /* Align items to the top to account for labels below */
+            margin-bottom: 2.5rem; /* Increased margin to accommodate labels */
+            padding: 0 1rem; 
+        }
+        .avatar { /* Container for image and label text */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .avatar-image-wrapper { /* This div will be the circle */
+            width: clamp(60px, 12vw, 80px); 
+            height: clamp(60px, 12vw, 80px);
+            background-color: var(--avatar-bg); 
+            border: 3px solid var(--avatar-border-inactive); 
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3), inset 0 0 8px rgba(0,0,0,0.2);
+            position: relative; 
+            overflow: hidden; 
+        }
+        .avatar-image {
+            display: block; 
+            width: 100%;
+            height: 100%;
+            object-fit: cover; 
+        }
+        .avatar-label {
+            margin-top: 0.5rem; /* Space between image circle and text label */
+            font-size: clamp(0.55rem, 1.8vw, 0.7rem);
+            color: var(--hoyoverse-text-dark);
+            text-transform: uppercase;
+            text-align: center;
+        }
+        .avatar-image-wrapper.active { /* Apply active styles to the wrapper */
+            border-color: var(--avatar-border-active); 
+            transform: scale(1.1); 
+            box-shadow: 0 0 15px var(--avatar-border-active), 0 6px 15px rgba(0,0,0,0.4), inset 0 0 10px rgba(0,0,0,0.1);
+        }
+
+
+        .btn { padding: 0.8rem 1.6rem; border-radius: 0.85rem; font-weight: 700; letter-spacing: 0.08em; display: inline-block; transition: all 0.3s ease; cursor: pointer; border: 1px solid transparent; position: relative; overflow: hidden; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; background: var(--hoyoverse-bg-mid); }
+        .btn:disabled:hover { transform: none; box-shadow: 0 5px 20px rgba(0,0,0,0.3); }
+        .btn:disabled::before { display: none; }
+        .btn::before { content: ""; position: absolute; top: 0; left: -100%; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255,255,255,0.25), transparent); transition: left 0.6s ease; }
+        .btn:hover::before { left: 100%; }
+        .btn-primary { background: linear-gradient(145deg, var(--hoyoverse-primary-glow), #581c87); color: white; border-color: var(--hoyoverse-primary-glow); text-shadow: 0 0 7px rgba(255,255,255,0.4); }
+        .btn-primary:hover:not(:disabled) { background: linear-gradient(145deg, #c084fc, #7e22ce); box-shadow: 0 10px 30px rgba(167, 139, 250, 0.6); transform: translateY(-4px) scale(1.03); }
+        .btn-secondary { background: linear-gradient(145deg, var(--hoyoverse-bg-end), var(--hoyoverse-bg-mid)); color: var(--hoyoverse-text-light); border-color: var(--cell-border); }
+        .btn-secondary:hover:not(:disabled) { background: linear-gradient(145deg, var(--hoyoverse-bg-mid), var(--hoyoverse-bg-start)); box-shadow: 0 10px 30px rgba(51, 65, 85, 0.6); transform: translateY(-4px) scale(1.03); }
+        .btn-special { background: linear-gradient(145deg, var(--hoyoverse-tertiary-glow), #ca8a04); color: #422006; border-color: var(--hoyoverse-tertiary-glow); text-shadow: 0 0 5px rgba(255, 255, 255, 0.5); }
+        .btn-special:hover:not(:disabled) { background: linear-gradient(145deg, #fde047, #eab308); box-shadow: 0 10px 30px rgba(253, 224, 71, 0.6); transform: translateY(-4px) scale(1.03); }
+
+        .board { gap: 0.8rem; margin: 1.5rem auto; max-width: 280px; display: grid; grid-template-columns: repeat(3, 1fr); width: 100%; aspect-ratio: 1 / 1; border: 2.5px solid rgba(125, 211, 252, 0.25); border-radius: 1.25rem; padding: 0.5rem; background-color: rgba(15, 23, 42, 0.35); box-shadow: inset 0 0 20px rgba(125, 211, 252, 0.2); }
+        .cell { border-radius: 0.85rem; background-color: var(--cell-bg); border: 2.5px solid var(--cell-border); display: flex; justify-content: center; align-items: center; font-size: clamp(2.2rem, 9vw, 3.2rem); font-weight: bold; cursor: pointer; transition: all 0.25s ease-in-out; box-shadow: inset 0 0 8px rgba(0,0,0,0.4), 0 2px 4px rgba(0,0,0,0.2); position: relative; }
+        .cell.hint-cell { animation: pulseHint 1.5s infinite ease-in-out; box-shadow: 0 0 20px var(--hoyoverse-tertiary-glow), inset 0 0 10px var(--hoyoverse-tertiary-glow); border-color: var(--hoyoverse-tertiary-glow); }
+        @keyframes pulseHint { 0% { background-color: var(--cell-bg); } 50% { background-color: var(--hint-highlight-color); } 100% { background-color: var(--cell-bg); } }
+        .cell:hover:not(.occupied):not(.hint-cell) { background-color: var(--cell-hover-bg); border-color: var(--hoyoverse-secondary-glow); transform: scale(1.06); box-shadow: inset 0 0 12px rgba(0,0,0,0.3), 0 0 12px var(--hoyoverse-secondary-glow); }
+        .cell.X { color: var(--hoyoverse-accent); text-shadow: 0 0 10px var(--hoyoverse-accent), 0 0 20px var(--hoyoverse-accent), 0 0 3px #fff; }
+        .cell.O { color: var(--hoyoverse-accent-alt); text-shadow: 0 0 10px var(--hoyoverse-accent-alt), 0 0 20px var(--hoyoverse-accent-alt), 0 0 3px #fff; }
+        .cell.winning-cell { background-color: rgba(167, 139, 250, 0.3); border-color: var(--hoyoverse-primary-glow); animation: pulseWin 1s infinite ease-in-out; }
+        @keyframes pulseWin { 0% { transform: scale(1); box-shadow: 0 0 15px var(--hoyoverse-primary-glow), inset 0 0 8px rgba(167,139,250,0.4); } 50% { transform: scale(1.05); box-shadow: 0 0 25px var(--hoyoverse-primary-glow), inset 0 0 12px rgba(167,139,250,0.6); } 100% { transform: scale(1); box-shadow: 0 0 15px var(--hoyoverse-primary-glow), inset 0 0 8px rgba(167,139,250,0.4); } }
+        .hidden { display: none !important; }
+        .status-text, .hint-message-area { min-height: 1.5em; font-size: 1.1rem; margin-bottom: 0.8rem; font-weight: 600; color: var(--hoyoverse-text-dark); text-shadow: 0 0 5px rgba(226, 232, 240, 0.2); }
+        .hint-message-area { color: var(--hoyoverse-tertiary-glow); }
+        .status-text .player-x { color: var(--hoyoverse-accent); }
+        .status-text .player-o { color: var(--hoyoverse-accent-alt); }
+        h1, h2 { color: var(--hoyoverse-text-light); text-shadow: 0 0 12px var(--hoyoverse-secondary-glow), 0 0 4px #fff; }
+        h1 { font-size: clamp(1.8rem, 6vw, 2.5rem); margin-bottom: 0.5rem !important; } 
+        h2 { font-size: clamp(1rem, 4vw, 1.3rem); }
+        .game-controls { margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.75rem; }
+        @media (min-width: 640px) { .game-controls { flex-direction: row; justify-content: center; gap: 1rem; } }
+
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <div id="screen-menu">
+            <h1 class="text-4xl font-bold mb-8">Tic Tac Toe: Cosmic Duel</h1>
+            <h2 class="text-2xl mb-6">Pilih Takdirmu di Hamparan Bintang:</h2>
+            <div class="space-y-4">
+                <button id="btn-multiplayer" class="btn btn-primary w-full">Duel Antar Bintang (Lokal)</button>
+                <button id="btn-vs-bot" class="btn btn-primary w-full">Hadapi Entitas Kosmik (Bot)</button>
+            </div>
+
+            <div class="api-key-input-container">
+                <p class="instruction">Untuk fitur "Saran Kosmik ✨", masukkan API Key Gemini Anda:</p>
+                <input type="password" id="api-key-input-field" class="api-key-input" placeholder="Masukkan API Key Gemini Anda di sini">
+                <button id="btn-save-api-key" class="btn btn-secondary w-full text-sm py-2">Simpan API Key</button>
+                <div id="api-key-status-message" class="api-key-status"></div>
+                <p class="instruction mt-2">Belum punya API Key? Dapatkan di <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">Google AI Studio</a>.</p>
+                
+                <div class="feature-info mt-4">
+                  <h4 class="font-semibold text-slate-300">Tentang Fitur Saran Kosmik ✨:</h4>
+                  <p>Fitur "Saran Kosmik" menggunakan kecerdasan buatan (AI) canggih dari Google, yaitu model Gemini, untuk memberikan Anda rekomendasi langkah strategis selama bermain Tic Tac Toe.</p>
+                  <p class="mt-1">Untuk mengaktifkan fitur ini, Anda memerlukan API Key dari Google AI Studio. Setelah API Key dimasukkan dan disimpan, tombol "Saran Kosmik ✨" akan tersedia saat giliran Anda bermain (jika melawan bot, hanya saat giliran Anda sebagai pemain manusia).</p>
+                  <p class="mt-1">Meskipun saran yang diberikan cerdas, perlu diingat bahwa Tic Tac Toe adalah permainan strategi di mana hasil seri adalah umum terjadi melawan pemain (atau bot) yang kuat. Saran ini bertujuan membantu, bukan jaminan kemenangan mutlak.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="screen-difficulty" class="hidden">
+             <h1 class="text-3xl font-bold mb-10">Hadapi Entitas Kosmik</h1>
+            <h2 class="text-xl mb-8">Pilih Tingkat Manifestasi Kekuatan:</h2>
+            <div class="space-y-5">
+                <button data-difficulty="easy" class="btn-difficulty btn btn-primary w-full">Nebula Samar (Mudah)</button>
+                <button data-difficulty="normal" class="btn-difficulty btn btn-primary w-full">Pulsar Stabil (Normal)</button>
+                <button data-difficulty="hard" class="btn-difficulty btn btn-primary w-full">Singularitas (Sulit)</button>
+            </div>
+            <button id="btn-back-to-menu-from-difficulty" class="btn btn-secondary w-full mt-8">Kembali ke Gerbang Antariksa</button>
+        </div>
+
+        <div id="screen-game" class="hidden">
+            <div class="avatar-container">
+                <div class="avatar"> <div id="avatar-player1-wrapper" class="avatar-image-wrapper">
+                        <img id="avatar-player1-img" src="" alt="Pemain 1 Avatar" class="avatar-image">
+                    </div>
+                    <span id="avatar-player1-label" class="avatar-label">Pemain 1</span>
+                </div>
+                <div class="avatar"> <div id="avatar-player2-wrapper" class="avatar-image-wrapper">
+                        <img id="avatar-player2-img" src="" alt="Pemain 2 Avatar" class="avatar-image">
+                    </div>
+                    <span id="avatar-player2-label" class="avatar-label">Pemain 2</span>
+                </div>
+            </div>
+            <h1 class="text-3xl font-bold" id="game-title">Arena Para Takdir</h1>
+            <div id="status" class="status-text">Giliran Artefak X</div>
+            <div id="hint-message-area" class="hint-message-area"></div>
+            <div id="board" class="board"></div>
+            <div class="game-controls">
+                <button id="btn-cosmic-hint" class="btn btn-special w-full md:w-auto">Saran Kosmik ✨</button>
+                <button id="btn-reset" class="btn btn-primary w-full md:w-auto">Ulangi Pertarungan</button>
+                <button id="btn-back-to-menu-from-game" class="btn btn-secondary w-full md:w-auto">Kembali ke Gerbang</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Elemen DOM
+        const screenMenu = document.getElementById('screen-menu');
+        const screenDifficulty = document.getElementById('screen-difficulty');
+        const screenGame = document.getElementById('screen-game');
+
+        const btnMultiplayer = document.getElementById('btn-multiplayer');
+        const btnVsBot = document.getElementById('btn-vs-bot');
+        const difficultyButtons = document.querySelectorAll('.btn-difficulty');
+        const btnBackToMenuFromDifficulty = document.getElementById('btn-back-to-menu-from-difficulty');
+        
+        const gameTitle = document.getElementById('game-title');
+        const boardElement = document.getElementById('board');
+        const statusElement = document.getElementById('status');
+        const hintMessageArea = document.getElementById('hint-message-area');
+        const btnReset = document.getElementById('btn-reset');
+        const btnBackToMenuFromGame = document.getElementById('btn-back-to-menu-from-game');
+        const btnCosmicHint = document.getElementById('btn-cosmic-hint');
+
+        // Elemen untuk API Key
+        const apiKeyInputField = document.getElementById('api-key-input-field');
+        const btnSaveApiKey = document.getElementById('btn-save-api-key');
+        const apiKeyStatusMessage = document.getElementById('api-key-status-message');
+
+        // Avatar Elements
+        const avatarPlayer1Wrapper = document.getElementById('avatar-player1-wrapper'); // Wrapper for border/effects
+        const avatarPlayer1Img = document.getElementById('avatar-player1-img');
+        const avatarPlayer1Label = document.getElementById('avatar-player1-label');
+        
+        const avatarPlayer2Wrapper = document.getElementById('avatar-player2-wrapper'); // Wrapper for border/effects
+        const avatarPlayer2Img = document.getElementById('avatar-player2-img');
+        const avatarPlayer2Label = document.getElementById('avatar-player2-label');
+
+
+        let boardState = ['', '', '', '', '', '', '', '', ''];
+        let currentPlayer = 'X';
+        let gameMode = ''; 
+        let botDifficulty = ''; 
+        let isGameOver = false;
+        const botPlayer = 'O';
+        const humanPlayer = 'X';
+        let hintCellIndex = -1; 
+
+        const GEMINI_API_KEY_STORAGE_KEY = 'geminiApiKey_tictactoe';
+
+        function saveApiKey() {
+            const apiKey = apiKeyInputField.value.trim();
+            if (apiKey) {
+                localStorage.setItem(GEMINI_API_KEY_STORAGE_KEY, apiKey);
+                apiKeyStatusMessage.textContent = 'API Key disimpan!';
+                apiKeyStatusMessage.className = 'api-key-status success';
+                if (!screenGame.classList.contains('hidden')) {
+                    updateCosmicHintButtonStatus();
+                }
+            } else {
+                localStorage.removeItem(GEMINI_API_KEY_STORAGE_KEY);
+                apiKeyStatusMessage.textContent = 'API Key dihapus. Masukkan API Key untuk fitur saran.';
+                apiKeyStatusMessage.className = 'api-key-status error';
+            }
+            setTimeout(() => { apiKeyStatusMessage.textContent = ''; }, 3000);
+        }
+
+        function getApiKey() {
+            return localStorage.getItem(GEMINI_API_KEY_STORAGE_KEY);
+        }
+        
+        function updateCosmicHintButtonStatus() {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                btnCosmicHint.disabled = true;
+                if(!screenGame.classList.contains('hidden')) {
+                    hintMessageArea.textContent = 'Masukkan API Key di menu untuk fitur saran.';
+                }
+                return false; 
+            }
+            btnCosmicHint.disabled = isGameOver || (gameMode === 'bot' && currentPlayer === botPlayer);
+            if (!btnCosmicHint.disabled && !screenGame.classList.contains('hidden') && hintCellIndex === -1) { 
+                 hintMessageArea.textContent = ''; 
+            }
+            return true; 
+        }
+
+        function loadApiKeyFromStorage() {
+            const storedApiKey = getApiKey();
+            if (storedApiKey) {
+                apiKeyInputField.value = storedApiKey;
+                apiKeyStatusMessage.textContent = 'API Key dimuat dari penyimpanan.';
+                apiKeyStatusMessage.className = 'api-key-status success';
+            } else {
+                apiKeyStatusMessage.textContent = 'Belum ada API Key tersimpan.';
+                apiKeyStatusMessage.className = 'api-key-status';
+            }
+             setTimeout(() => { apiKeyStatusMessage.textContent = ''; }, 3000);
+        }
+
+        const winningCombinations = [
+            [0, 1, 2], [3, 4, 5], [6, 7, 8], 
+            [0, 3, 6], [1, 4, 7], [2, 5, 8], 
+            [0, 4, 8], [2, 4, 6]            
+        ];
+
+        function showScreen(screenId) {
+            screenMenu.classList.add('hidden');
+            screenDifficulty.classList.add('hidden');
+            screenGame.classList.add('hidden');
+            document.getElementById(screenId).classList.remove('hidden');
+            
+            if (screenId === 'screen-menu') {
+                loadApiKeyFromStorage(); 
+            } else if (screenId === 'screen-game') {
+                updateCosmicHintButtonStatus(); 
+            }
+        }
+
+        function initializeBoard() {
+            boardElement.innerHTML = '';
+            for (let i = 0; i < 9; i++) {
+                const cell = document.createElement('div');
+                cell.classList.add('cell');
+                cell.dataset.index = i;
+                cell.addEventListener('click', handleCellClick);
+                boardElement.appendChild(cell);
+            }
+            clearHint(); 
+        }
+        
+        function setupAvatars() { 
+            // Player 1 (Human X)
+            avatarPlayer1Img.src = 'img/tic1.png'; // Assuming tic1.jpg is in the same directory or correct path
+            avatarPlayer1Img.alt = (gameMode === 'bot') ? 'Pemain Avatar' : 'Pemain 1 Avatar';
+            avatarPlayer1Label.textContent = (gameMode === 'bot') ? 'Pemain' : 'Pemain 1';
+            
+            // Player 2 (Bot O or Human O)
+            if (gameMode === 'bot') {
+                avatarPlayer2Img.src = 'img/tic3.png'; // Assuming tic3.jpg is for bot
+                avatarPlayer2Img.alt = 'Bot Avatar';
+                avatarPlayer2Label.textContent = `Bot (${botDifficulty.charAt(0).toUpperCase() + botDifficulty.slice(1)})`;
+            } else { // Multiplayer
+                avatarPlayer2Img.src = 'img/tic2.png'; // Assuming tic2.jpg is for Player 2
+                avatarPlayer2Img.alt = 'Pemain 2 Avatar';
+                avatarPlayer2Label.textContent = 'Pemain 2';
+            }
+            
+            avatarPlayer1Wrapper.classList.remove('active');
+            avatarPlayer2Wrapper.classList.remove('active');
+        }
+
+        function updateActiveAvatar() {
+            if (currentPlayer === humanPlayer) {
+                avatarPlayer1Wrapper.classList.add('active');
+                avatarPlayer2Wrapper.classList.remove('active');
+            } else {
+                avatarPlayer2Wrapper.classList.add('active');
+                avatarPlayer1Wrapper.classList.remove('active');
+            }
+            updateCosmicHintButtonStatus(); 
+        }
+
+
+        function startGame(mode, difficulty = null) {
+            gameMode = mode;
+            botDifficulty = difficulty;
+            boardState = ['', '', '', '', '', '', '', '', ''];
+            currentPlayer = 'X'; // Human player (X) always starts
+            isGameOver = false;
+            
+            initializeBoard(); 
+            setupAvatars(); 
+            showScreen('screen-game'); 
+            updateStatus(); 
+
+            let difficultyText = '';
+            if (difficulty) {
+                switch(difficulty) {
+                    case 'easy': difficultyText = 'Nebula Samar'; break;
+                    case 'normal': difficultyText = 'Pulsar Stabil'; break;
+                    case 'hard': difficultyText = 'Singularitas'; break;
+                }
+            }
+
+            if (gameMode === 'bot') {
+                gameTitle.textContent = `Vs Entitas Kosmik (${difficultyText})`;
+                // Avatar labels are set in setupAvatars
+            } else {
+                gameTitle.textContent = 'Duel Antar Bintang';
+                 // Avatar labels are set in setupAvatars
+            }
+        }
+        
+        function handleCellClick(event) { 
+             if (isGameOver) return;
+             // Allow click only if it's human's turn in bot mode, or any player in multiplayer
+             if (gameMode === 'bot' && currentPlayer === botPlayer) return;
+
+            const index = parseInt(event.target.dataset.index); 
+            if (boardState[index] === '') {
+                clearHint(); 
+                boardState[index] = currentPlayer;
+                event.target.textContent = currentPlayer;
+                event.target.classList.add(currentPlayer, 'occupied');
+                
+                if (checkWin(currentPlayer)) {
+                    endGame(false);
+                } else if (boardState.every(cell => cell !== '')) {
+                    endGame(true); 
+                } else {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    updateStatus();
+                    if (gameMode === 'bot' && currentPlayer === botPlayer && !isGameOver) {
+                        setTimeout(makeBotMove, 700); 
+                    }
+                }
+            }
+        }
+
+        function checkWin(player, currentBoard = boardState) { 
+            for (const combination of winningCombinations) {
+                if (combination.every(index => currentBoard[index] === player)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        
+        function endGame(draw) { 
+            isGameOver = true;
+            updateCosmicHintButtonStatus(); 
+            avatarPlayer1Wrapper.classList.remove('active'); 
+            avatarPlayer2Wrapper.classList.remove('active');
+
+            if (draw) {
+                statusElement.textContent = 'Takdir Kosmik Berakhir Imbang!';
+                statusElement.className = 'status-text text-yellow-300';
+            } else {
+                statusElement.innerHTML = `Artefak <span class="player-${currentPlayer.toLowerCase()}">${currentPlayer}</span> Meraih Kemenangan Universal!`;
+                statusElement.className = 'status-text';
+                highlightWinningCells();
+                // Highlight winner's avatar
+                if (currentPlayer === humanPlayer) { // humanPlayer is always 'X'
+                    avatarPlayer1Wrapper.classList.add('active'); 
+                } else { // botPlayer or Player 2 ('O')
+                    avatarPlayer2Wrapper.classList.add('active'); 
+                }
+            }
+        }
+
+        function highlightWinningCells() { 
+            for (const combination of winningCombinations) {
+                if (combination.every(index => boardState[index] === currentPlayer)) {
+                    combination.forEach(index => {
+                        boardElement.children[index].classList.add('winning-cell');
+                    });
+                    break; 
+                }
+            }
+        }
+
+        function updateStatus() { 
+            if (isGameOver) return;
+            statusElement.innerHTML = `Giliran Artefak <span class="player-${currentPlayer.toLowerCase()}">${currentPlayer}</span>`;
+            statusElement.className = 'status-text';
+            updateActiveAvatar(); 
+        }
+
+        function resetGame() { 
+            startGame(gameMode, botDifficulty);
+        }
+
+        function makeBotMove() { 
+            if (isGameOver) return;
+            clearHint(); 
+            let moveIndex;
+            if (botDifficulty === 'easy') {
+                moveIndex = easyBotMove();
+            } else if (botDifficulty === 'normal') {
+                moveIndex = normalBotMove();
+            } else if (botDifficulty === 'hard') {
+                moveIndex = hardBotMove();
+            }
+
+            if (moveIndex !== undefined && boardState[moveIndex] === '') {
+                boardState[moveIndex] = botPlayer;
+                const cellElement = boardElement.children[moveIndex];
+                cellElement.textContent = botPlayer;
+                cellElement.classList.add(botPlayer, 'occupied');
+
+                if (checkWin(botPlayer)) {
+                    endGame(false);
+                } else if (boardState.every(cell => cell !== '')) {
+                    endGame(true); 
+                } else {
+                    currentPlayer = humanPlayer; // Switch back to human player
+                    updateStatus();
+                }
+            }
+        }
+
+        function getEmptyCells(currentBoard = boardState) { 
+             return currentBoard.map((val, idx) => val === '' ? idx : null).filter(val => val !== null);
+        }
+        function easyBotMove() { 
+            const emptyCells = getEmptyCells();
+            if (emptyCells.length > 0) {
+                return emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            }
+            return undefined;
+        }
+        function normalBotMove() { 
+            // Check if bot can win
+            for (const index of getEmptyCells()) {
+                const tempBoard = [...boardState];
+                tempBoard[index] = botPlayer;
+                if (checkWin(botPlayer, tempBoard)) { return index; }
+            }
+            // Check if human can win, and block
+            for (const index of getEmptyCells()) {
+                const tempBoard = [...boardState];
+                tempBoard[index] = humanPlayer;
+                if (checkWin(humanPlayer, tempBoard)) { return index; }
+            }
+            // Try center
+            if (boardState[4] === '') return 4;
+            // Try corners
+            const corners = [0, 2, 6, 8].filter(idx => boardState[idx] === '');
+            if (corners.length > 0) return corners[Math.floor(Math.random() * corners.length)];
+            // Else, random move
+            return easyBotMove();
+        }
+        function hardBotMove() { 
+            const bestMove = minimax([...boardState], botPlayer, 0, -Infinity, Infinity); 
+            return bestMove.index;
+        }
+        
+        const MAX_DEPTH_HARD = 7; // Max depth for hard bot, can be adjusted
+                                // Tic Tac Toe state space is small, can go deeper.
+                                // With 9 cells, max depth is 9.
+
+        function minimax(currentBoard, player, depth, alpha, beta) { 
+            const emptyCells = getEmptyCells(currentBoard);
+
+            if (checkWin(humanPlayer, currentBoard)) { return { score: -10 + depth }; } 
+            else if (checkWin(botPlayer, currentBoard)) { return { score: 10 - depth }; } 
+            else if (emptyCells.length === 0) { return { score: 0 }; }
+
+            // Depth limit for hard bot to prevent excessive calculation on very early moves if needed,
+            // but for Tic Tac Toe, it can usually explore fully.
+            // if (depth >= MAX_DEPTH_HARD && botDifficulty === 'hard') { return { score: 0 }; }
+
+            const moves = [];
+            for (const index of emptyCells) {
+                const move = { index: index };
+                currentBoard[index] = player;
+                
+                if (player === botPlayer) { // Maximizing player
+                    const result = minimax(currentBoard, humanPlayer, depth + 1, alpha, beta);
+                    move.score = result.score;
+                    alpha = Math.max(alpha, move.score);
+                } else { // Minimizing player
+                    const result = minimax(currentBoard, botPlayer, depth + 1, alpha, beta);
+                    move.score = result.score;
+                    beta = Math.min(beta, move.score);
+                }
+                currentBoard[index] = ''; // Undo move
+                moves.push(move);
+
+                if (beta <= alpha) { // Alpha-beta pruning
+                    break;
+                }
+            }
+
+            let bestMove;
+            if (player === botPlayer) { 
+                let bestScore = -Infinity;
+                for (const move of moves) { if (move.score > bestScore) { bestScore = move.score; bestMove = move; } }
+            } else { 
+                let bestScore = Infinity;
+                for (const move of moves) { if (move.score < bestScore) { bestScore = move.score; bestMove = move; } }
+            }
+            return bestMove;
+        }
+
+        function clearHint() {
+            if (hintCellIndex !== -1 && boardElement.children[hintCellIndex]) {
+                boardElement.children[hintCellIndex].classList.remove('hint-cell');
+            }
+            hintCellIndex = -1;
+            if(btnCosmicHint && !btnCosmicHint.disabled && !screenGame.classList.contains('hidden')) {
+                 hintMessageArea.textContent = '';
+            }
+        }
+
+        async function fetchCosmicHint() {
+            const apiKey = getApiKey();
+            if (!apiKey) {
+                hintMessageArea.textContent = 'API Key Gemini tidak ditemukan. Masukkan di menu utama.';
+                btnCosmicHint.disabled = true;
+                return;
+            }
+
+            if (isGameOver || (gameMode === 'bot' && currentPlayer === botPlayer)){
+                btnCosmicHint.disabled = true;
+                return;
+            }
+
+            clearHint(); 
+            hintMessageArea.textContent = 'Meminta bisikan kosmik...';
+            btnCosmicHint.disabled = true;
+
+            const boardRepresentationForAI = boardState.map((cell, index) => {
+                if (cell === 'X') return 'X';
+                if (cell === 'O') return 'O';
+                return index.toString(); 
+            }).join(',');
+            
+            const prompt = `Anda adalah AI ahli strategi Tic Tac Toe. Papan saat ini (0-8, angka menunjukkan sel kosong): ${boardRepresentationForAI}. Pemain saat ini adalah '${currentPlayer}'. Berikan satu angka (0-8) untuk langkah terbaik berikutnya bagi pemain '${currentPlayer}' dengan tujuan untuk menang, atau jika tidak bisa menang, untuk memblokir lawan, atau jika tidak keduanya, untuk membuat langkah strategis terbaik menuju hasil seri atau kemenangan. Hanya berikan angka indeks sel yang kosong. Contoh: 4`;
+            
+            let chatHistory = [{ role: "user", parts: [{ text: prompt }] }];
+            const payload = { contents: chatHistory };
+            
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error('Error dari Gemini API:', errorData);
+                    let userErrorMessage = `Respon tidak OK: ${response.status}`;
+                    if (errorData.error && errorData.error.message) {
+                        userErrorMessage += ` - ${errorData.error.message}`;
+                         if (response.status === 403) {
+                             userErrorMessage += " Pastikan API Key Anda valid dan memiliki izin.";
+                         } else if (response.status === 400 && errorData.error.message.toLowerCase().includes("api key not valid")) {
+                             userErrorMessage = "API Key tidak valid. Periksa kembali API Key Anda.";
+                         }  else if (response.status === 429) {
+                            userErrorMessage = "Terlalu banyak permintaan ke API. Coba lagi nanti.";
+                        }
+                    } else {
+                         userErrorMessage += " Terjadi kesalahan tidak diketahui.";
+                    }
+                    throw new Error(userErrorMessage);
+                }
+
+                const result = await response.json();
+
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    
+                    const text = result.candidates[0].content.parts[0].text.trim();
+                    const suggestedMove = parseInt(text);
+
+                    if (!isNaN(suggestedMove) && suggestedMove >= 0 && suggestedMove <= 8 && boardState[suggestedMove] === '') {
+                        hintCellIndex = suggestedMove;
+                        boardElement.children[hintCellIndex].classList.add('hint-cell');
+                        hintMessageArea.textContent = `Bisikan kosmik menyarankan sel ${hintCellIndex}.`;
+                    } else {
+                        console.warn('Saran dari AI tidak valid atau sel sudah terisi:', text);
+                        hintMessageArea.textContent = 'Bisikan kosmik tidak jelas... Coba lagi nanti.';
+                        const emptyCells = getEmptyCells();
+                        if(emptyCells.length > 0) { // Fallback to random hint if AI fails
+                            const randomHint = emptyCells[Math.floor(Math.random() * emptyCells.length)];
+                            hintCellIndex = randomHint;
+                            boardElement.children[hintCellIndex].classList.add('hint-cell');
+                            hintMessageArea.textContent = `Sinyal terdistorsi, coba sel ${hintCellIndex}.`;
+                        }
+                    }
+                } else {
+                    console.error('Struktur respons tidak diharapkan dari Gemini API:', result);
+                    hintMessageArea.textContent = 'Gagal menerima bisikan kosmik.';
+                }
+            } catch (error) {
+                console.error('Error saat mengambil saran dari Gemini:', error);
+                hintMessageArea.textContent = `Error: ${error.message || 'Tidak dapat menghubungi entitas kosmik.'}`;
+            } finally {
+                 updateCosmicHintButtonStatus(); 
+            }
+        }
+
+        // Event Listeners
+        btnSaveApiKey.addEventListener('click', saveApiKey);
+        btnMultiplayer.addEventListener('click', () => startGame('multiplayer'));
+        btnVsBot.addEventListener('click', () => showScreen('screen-difficulty'));
+        difficultyButtons.forEach(button => {
+            button.addEventListener('click', (e) => {
+                startGame('bot', e.target.dataset.difficulty);
+            });
+        });
+        btnBackToMenuFromDifficulty.addEventListener('click', () => showScreen('screen-menu'));
+        btnBackToMenuFromGame.addEventListener('click', () => showScreen('screen-menu'));
+        btnReset.addEventListener('click', resetGame);
+        btnCosmicHint.addEventListener('click', fetchCosmicHint);
+
+        // Initial call
+        showScreen('screen-menu');
+    </script>
+</body>
+</html>
